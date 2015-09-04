@@ -1,0 +1,30 @@
+{
+  "manifest_version": 2,
+
+  "name": "chrome-ext-history-slack",
+  "description": "Post website history to Slack.",
+  "version": "1.0",
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://qiita.com/*/items/*",
+        "http://stackoverflow.com/questions/*",
+        "http://www.slideshare.net/*"
+      ],
+      "js": [
+        "content-script.js"
+      ]
+    }
+  ],
+  "permissions": [
+    "<all_urls>"
+  ]
+}

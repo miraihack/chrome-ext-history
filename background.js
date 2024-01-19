@@ -5,22 +5,19 @@
 
 console.log("background.js loaded");
 
-var slack_web_hook, username;
+let slack_web_hook, username;
 
-chrome.runtime.getPackageDirectoryEntry(function(root) {
-  root.getFile ('local.json', {create: false }, function( sample ) {
-    sample.file ( function( file ) {
-      var reader = new FileReader();
-      reader.onload = function( e ) { 
-        // console.log (JSON.parse(e.target.result));
-        var local = JSON.parse(e.target.result);
-        slack_web_hook = local.slack_web_hook;
-        username = local.username;
-      };
-      reader.readAsText (file, 'utf-8');
+// 修正: local.json ファイルへのアクセス方法を変更
+let url = chrome.runtime.getURL('config/local.json');
+fetch(url)
+    .then((response) => response.json())
+    .then((json) => {
+        slack_web_hook = json.slack_web_hook;
+        username = json.username;
+    })
+    .catch((error) => {
+        console.error('Error reading local.json:', error);
     });
-  });
-});
 
 
 chrome.runtime.onMessage.addListener(
@@ -35,41 +32,40 @@ chrome.runtime.onMessage.addListener(
 
 function postMessage(title, url, sendResponse) {
   console.log("postMessage() ", slack_web_hook);
-  // The URL to POST our data to
-  var postUrl = slack_web_hook;
+  let postUrl = slack_web_hook;
 
-  // Set up an asynchronous AJAX POST request
-  var xhr = new XMLHttpRequest();
-  xhr.open('POST', postUrl, true);
-
-
-  var payload = {
+  let payload = {
     "text": title + "\n" + url,
-    "channel": "#tech",
     "username": username,
+    "channel": "test2",
     "icon_emoji": ":ghost:"
   };
-  var params = 'payload=' + JSON.stringify(payload);
+  let params = 'payload=' + JSON.stringify(payload);
 
-  // Replace any instances of the URLEncoded space char with +
-//  params = params.replace(/%20/g, '+');
-
-  // Set correct header for form data 
-  xhr.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
-
-  // Handle request state change events
-  xhr.onreadystatechange = function() { 
-    // If the request completed
-    if (xhr.readyState == 4) {
-      if (xhr.status == 200) {
-        console.log('Saved!');
-        sendResponse({message: "Saved!"});
-      } else {
-        console.log('Error saving: ' + xhr.statusText);
-        sendResponse({message: 'Error saving: ' + xhr.statusText});
-      }
-    }
-  };
-  // Send the request and set status
-  xhr.send(params);
+fetch(postUrl, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json'
+  },
+  body: JSON.stringify(payload)
+})
+.then(response => {
+  if (response.ok) {
+    return response.text();  // または response.json() など
+  } else {
+    console.log('Response status:', response.status);
+    console.log('Response status text:', response.statusText);
+    return response.text().then(text => {
+      throw new Error(text || 'Network response was not ok.');
+    });
+  }
+})
+.then(text => {
+  console.log('Response body:', text);
+  sendResponse({message: "Saved!"});
+})
+.catch(error => {
+  console.log('Error saving:', error.message);
+  sendResponse({message: 'Error saving: ' + error.message});
+});
 }
